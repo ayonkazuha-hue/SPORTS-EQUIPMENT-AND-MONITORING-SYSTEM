@@ -149,6 +149,15 @@ const app = {
         }
     },
 
+    resetBorrowRecords() {
+        if (confirm('Reset all borrowed items and clear all borrow records? This will set borrowed quantities back to zero.')) {
+            window.db.resetBorrowRecords();
+            this.showToast('Borrow records reset successfully.', 'success');
+            this.handleRoute();
+            this.updateBadge();
+        }
+    },
+
     // --- Borrow/Return Workflows --- //
     showBorrowModal(eqId) {
         const eq = window.db.getEquipmentById(eqId);

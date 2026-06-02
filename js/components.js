@@ -64,13 +64,12 @@ const Components = {
     renderEquipmentList: (equipments) => {
         let tableRows = '';
         if (equipments.length === 0) {
-            tableRows = `<tr><td colspan="7" class="empty-state"><i class="fa-solid fa-box-open"></i><br>No equipment found. Add some to get started.</td></tr>`;
+            tableRows = `<tr><td colspan="6" class="empty-state"><i class="fa-solid fa-box-open"></i><br>No equipment found. Add some to get started.</td></tr>`;
         } else {
             tableRows = equipments.map(eq => `
                 <tr>
                     <td><span class="status-badge ${eq.stockStatus}">${eq.stockStatusText}</span></td>
                     <td><strong>${eq.equipmentId}</strong><br><small class="text-muted">${eq.equipmentName}</small></td>
-                    <td>${eq.category}</td>
                     <td>${eq.totalQuantity}</td>
                     <td>${eq.quantityBorrowed}</td>
                     <td><strong>${eq.quantityAvailable}</strong></td>
@@ -89,9 +88,14 @@ const Components = {
         return `
             <div class="section-header animate-fade-in">
                 <h2>Equipment Inventory</h2>
-                <button class="btn btn-primary" onclick="app.showAddEquipmentModal()">
-                    <i class="fa-solid fa-plus"></i> Add New
-                </button>
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <button class="btn btn-secondary" onclick="app.resetBorrowRecords()">
+                        <i class="fa-solid fa-rotate-left"></i> Reset Borrows
+                    </button>
+                    <button class="btn btn-primary" onclick="app.showAddEquipmentModal()">
+                        <i class="fa-solid fa-plus"></i> Add New
+                    </button>
+                </div>
             </div>
 
             <div class="table-container animate-fade-in">
@@ -116,7 +120,6 @@ const Components = {
                         <tr>
                             <th>Status</th>
                             <th>ID & Name</th>
-                            <th>Category</th>
                             <th>Total</th>
                             <th>Borrowed</th>
                             <th>Available</th>

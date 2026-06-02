@@ -173,6 +173,11 @@ class Database {
         // Optionally handle related borrow records (cascade delete or mark invalid)
     }
 
+    resetBorrowRecords() {
+        localStorage.setItem(DB_KEY_BORROWS, JSON.stringify([]));
+        return true;
+    }
+
     generateNextEquipmentId() {
         const equipments = JSON.parse(localStorage.getItem(DB_KEY_EQUIPMENT) || '[]');
         const ids = equipments
