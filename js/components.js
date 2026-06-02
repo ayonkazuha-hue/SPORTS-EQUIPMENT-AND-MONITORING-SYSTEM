@@ -154,21 +154,6 @@ const Components = {
                     </div>
                     
                     <div class="form-row">
-                        ${isEdit ? `
-                        <div class="form-group">
-                            <label>Category *</label>
-                            <select id="eq-category" required>
-                                <option value="">Select Category</option>
-                                <option value="Balls" ${isEdit && eq.category === 'Balls' ? 'selected' : ''}>Balls</option>
-                                <option value="Rackets" ${isEdit && eq.category === 'Rackets' ? 'selected' : ''}>Rackets & Paddles</option>
-                                <option value="Protective Gear" ${isEdit && eq.category === 'Protective Gear' ? 'selected' : ''}>Protective Gear</option>
-                                <option value="Nets & Poles" ${isEdit && eq.category === 'Nets & Poles' ? 'selected' : ''}>Nets & Poles</option>
-                                <option value="Mats" ${isEdit && eq.category === 'Mats' ? 'selected' : ''}>Mats & Floors</option>
-                                <option value="Weights" ${isEdit && eq.category === 'Weights' ? 'selected' : ''}>Weights & Resistance</option>
-                                <option value="Accessories" ${isEdit && eq.category === 'Accessories' ? 'selected' : ''}>Accessories</option>
-                            </select>
-                        </div>
-                        ` : ''}
                         <div class="form-group" style="flex: 1;">
                             <label>Total Quantity *</label>
                             <input type="number" id="eq-total" required min="0" value="${isEdit ? eq.totalQuantity : ''}" oninput="app.calculateMockAvailability()">
@@ -194,12 +179,6 @@ const Components = {
                     <hr style="border-color: var(--border-color); margin: 1.5rem 0;">
 
                     <div class="form-row">
-                        ${isEdit ? `
-                        <div class="form-group">
-                            <label>Unit Price ($)</label>
-                            <input type="number" id="eq-price" step="0.01" min="0" value="${isEdit && eq.unitPrice ? eq.unitPrice : ''}">
-                        </div>
-                        ` : ''}
                         <div class="form-group" style="flex: 1;">
                             <label>Condition Status</label>
                             <select id="eq-condition">

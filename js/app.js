@@ -119,12 +119,18 @@ const app = {
         const data = {
             equipmentId: document.getElementById('eq-id').value,
             equipmentName: document.getElementById('eq-name').value,
-            category: categoryEl ? categoryEl.value : '',
             totalQuantity: parseInt(document.getElementById('eq-total').value),
-            unitPrice: priceEl ? parseFloat(priceEl.value || 0) : null,
             conditionStatus: document.getElementById('eq-condition').value,
             notes: document.getElementById('eq-notes').value
         };
+
+        if (categoryEl) {
+            data.category = categoryEl.value;
+        }
+
+        if (priceEl) {
+            data.unitPrice = parseFloat(priceEl.value || 0);
+        }
 
         window.db.saveEquipment(data);
         this.closeModal();
