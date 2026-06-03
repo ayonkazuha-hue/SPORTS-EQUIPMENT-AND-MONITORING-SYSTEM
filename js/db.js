@@ -178,6 +178,12 @@ class Database {
         return true;
     }
 
+    resetAllEquipment() {
+        localStorage.removeItem(DB_KEY_EQUIPMENT);
+        localStorage.removeItem(DB_KEY_BORROWS);
+        return true;
+    }
+
     generateNextEquipmentId() {
         const equipments = JSON.parse(localStorage.getItem(DB_KEY_EQUIPMENT) || '[]');
         const ids = equipments

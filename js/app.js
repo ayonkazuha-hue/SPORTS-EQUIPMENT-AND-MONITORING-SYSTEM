@@ -158,27 +158,84 @@ const app = {
         }
     },
 
+    resetAllEquipment() {
+        if (confirm('This will delete ALL equipment and ALL borrow records, giving you a clean slate. This cannot be undone. Continue?')) {
+            window.db.resetAllEquipment();
+            this.showToast('All equipment and borrow records have been cleared.', 'success');
+            this.handleRoute();
+            this.updateBadge();
+        }
+    },
+
     // --- Borrow/Return Workflows --- //
     showBorrowModal(eqId) {
         const eq = window.db.getEquipmentById(eqId);
         if (eq) this.showModal(Components.renderBorrowForm(eq));
     },
 
+    // Handles category radio change — toggle ID No. required + Others text field
+    onBorrowCategoryChange(radio) {
+        const idNoInput = document.getElementById('borrow-id-no');
+        const idNoLabel = document.getElementById('borrow-idno-label');
+        const idNoHint  = document.getElementById('borrow-idno-hint');
+        const otherInput = document.getElementById('borrow-category-other');
+
+        if (radio.value === 'Student') {
+            idNoInput.required = true;
+            idNoInput.placeholder = 'e.g. 2024-00123';
+            idNoLabel.textContent = 'ID No. *';
+            idNoHint.textContent = 'Required for Students';
+            idNoHint.style.color = 'var(--warning, #f59e0b)';
+        } else {
+            idNoInput.required = false;
+            idNoInput.placeholder = 'Optional';
+            idNoLabel.textContent = 'ID No.';
+            idNoHint.textContent = 'Optional for ' + radio.value;
+            idNoHint.style.color = '';
+        }
+
+        if (radio.value === 'Others') {
+            otherInput.disabled = false;
+            otherInput.required = true;
+            otherInput.focus();
+        } else {
+            otherInput.disabled = true;
+            otherInput.required = false;
+            otherInput.value = '';
+        }
+    },
+
     submitBorrow() {
         const form = document.getElementById('borrow-form');
+
+        // Check category selected
+        const categoryRadio = document.querySelector('input[name="borrow-category"]:checked');
+        if (!categoryRadio) {
+            this.showToast('Please select a category (Faculty, Staff, Student, or Others).', 'error');
+            return;
+        }
+
         if (!form.checkValidity()) {
             form.reportValidity();
             return;
         }
 
+        const category = categoryRadio.value;
+        const categoryOther = category === 'Others'
+            ? document.getElementById('borrow-category-other').value.trim()
+            : '';
+
         const data = {
             equipmentId: document.getElementById('borrow-eq-id').value,
             quantity: parseInt(document.getElementById('borrow-qty').value),
             borrowedBy: document.getElementById('borrow-user').value,
+            category,
+            categoryOther,
             idNo: document.getElementById('borrow-id-no').value,
             contactNumber: document.getElementById('borrow-contact').value,
             useFrom: document.getElementById('borrow-use-from').value,
             dueDate: document.getElementById('borrow-due').value,
+            issuedBy: document.getElementById('borrow-issued-by').value,
             purpose: document.getElementById('borrow-purpose').value
         };
 
@@ -220,24 +277,6 @@ const app = {
     },
 
     // --- Filtering --- //
-    filterEquipmentList() {
-        const cat = document.getElementById('category-filter').value;
-        const viewContainer = document.getElementById('app-view');
-        const list = window.db.getEquipmentList();
-        
-        let filtered = list;
-        if (cat !== 'All') {
-            filtered = list.filter(e => e.category === cat);
-        }
-        
-        viewContainer.innerHTML = Components.renderEquipmentList(filtered);
-        // Retain dropdown value
-        setTimeout(() => {
-            const dropdown = document.getElementById('category-filter');
-            if(dropdown) dropdown.value = cat;
-        }, 10);
-    },
-
     filterBorrowHistory() {
         const filter = document.getElementById('history-filter').value;
         const allBorrows = window.db.getBorrowRecords();
