@@ -51,10 +51,120 @@ const app = {
     updateBadge() {
         const metrics = window.db.getDashboardMetrics();
         const badge = document.getElementById('notification-badge');
+        const btn   = document.getElementById('notification-btn');
+        const notifList = document.getElementById('notif-list');
+
+        const count = metrics.alerts.length;
+
         if (badge) {
-            badge.innerText = metrics.alerts.length;
-            badge.style.display = metrics.alerts.length > 0 ? 'flex' : 'none';
+            badge.innerText = count;
+            badge.style.display = count > 0 ? 'flex' : 'none';
         }
+
+        if (btn) {
+            if (count > 0) {
+                // Remove and re-add class to re-trigger animation
+                btn.classList.remove('has-alerts');
+                void btn.offsetWidth; // reflow
+                btn.classList.add('has-alerts');
+            } else {
+                btn.classList.remove('has-alerts');
+            }
+        }
+
+        if (notifList) {
+            if (metrics.alerts.length === 0) {
+                notifList.innerHTML = `
+                    <div class="notif-empty">
+                        <i class="fa-solid fa-check-circle"></i>
+                        <span>All clear! No alerts right now.</span>
+                    </div>`;
+            } else {
+                notifList.innerHTML = metrics.alerts.map(a => {
+                    const iconMap = { danger: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-info-circle' };
+                    const icon = iconMap[a.type] || 'fa-bell';
+                    return `
+                        <div class="notif-item ${a.type}">
+                            <i class="fa-solid ${icon}"></i>
+                            <span>${a.message}</span>
+                        </div>`;
+                }).join('');
+            }
+        }
+    },
+
+    toggleNotifications(forceState) {
+        const dropdown = document.getElementById('notification-dropdown');
+        if (!dropdown) return;
+        const isOpen = dropdown.classList.contains('open');
+        const shouldOpen = forceState !== undefined ? forceState : !isOpen;
+        if (shouldOpen) {
+            dropdown.classList.add('open');
+            // Close when clicking outside
+            setTimeout(() => {
+                document.addEventListener('click', this._notifOutsideHandler = (e) => {
+                    if (!document.getElementById('notification-wrapper').contains(e.target)) {
+                        this.toggleNotifications(false);
+                    }
+                }, { once: true });
+            }, 10);
+        } else {
+            dropdown.classList.remove('open');
+            // Reset expanded state on close
+            const list = document.getElementById('notif-list');
+            if (list) list.style.maxHeight = '';
+            const icon = document.getElementById('notif-expand-icon');
+            if (icon) { icon.classList.remove('fa-chevron-up'); icon.classList.add('fa-chevron-down'); }
+            const btn = document.getElementById('notif-view-all-btn');
+            if (btn) btn.dataset.expanded = '';
+            if (this._notifOutsideHandler) {
+                document.removeEventListener('click', this._notifOutsideHandler);
+                this._notifOutsideHandler = null;
+            }
+        }
+    },
+
+    expandNotifications() {
+        const list = document.getElementById('notif-list');
+        const icon = document.getElementById('notif-expand-icon');
+        const btn  = document.getElementById('notif-view-all-btn');
+        if (!list) return;
+
+        const isExpanded = btn.dataset.expanded === 'true';
+        if (isExpanded) {
+            // Collapse back
+            list.style.maxHeight = '';
+            btn.dataset.expanded = 'false';
+            btn.innerHTML = '<i class="fa-solid fa-chevron-down" id="notif-expand-icon" style="margin-right:0.4rem;"></i>View All';
+        } else {
+            // Expand to show all
+            list.style.maxHeight = list.scrollHeight + 'px';
+            btn.dataset.expanded = 'true';
+            btn.innerHTML = '<i class="fa-solid fa-chevron-up" id="notif-expand-icon" style="margin-right:0.4rem;"></i>Show Less';
+        }
+    },
+
+    clearNotifications() {
+        const notifList = document.getElementById('notif-list');
+        const badge = document.getElementById('notification-badge');
+        const btn   = document.getElementById('notification-btn');
+        const viewAllBtn = document.getElementById('notif-view-all-btn');
+
+        if (notifList) {
+            notifList.style.maxHeight = '';
+            notifList.innerHTML = `
+                <div class="notif-empty">
+                    <i class="fa-solid fa-check-circle"></i>
+                    <span>All clear! No alerts right now.</span>
+                </div>`;
+        }
+        if (badge) { badge.innerText = '0'; badge.style.display = 'none'; }
+        if (btn)   { btn.classList.remove('has-alerts'); }
+        if (viewAllBtn) {
+            viewAllBtn.dataset.expanded = '';
+            viewAllBtn.innerHTML = '<i class="fa-solid fa-chevron-down" id="notif-expand-icon" style="margin-right:0.4rem;"></i>View All';
+        }
+        this.toggleNotifications(false);
     },
 
     // --- Modals Management --- //

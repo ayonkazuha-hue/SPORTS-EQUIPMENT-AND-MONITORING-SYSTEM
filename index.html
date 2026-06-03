@@ -45,10 +45,27 @@
                     <input type="text" placeholder="Search equipment, borrows, or IDs...">
                 </div>
                 <div class="top-bar-actions">
-                    <button class="icon-btn notification-btn">
-                        <i class="fa-solid fa-bell"></i>
-                        <span class="badge" id="notification-badge">0</span>
-                    </button>
+                    <div class="notification-wrapper" id="notification-wrapper">
+                        <button class="icon-btn notification-btn" id="notification-btn" onclick="app.toggleNotifications()">
+                            <i class="fa-solid fa-bell"></i>
+                            <span class="badge" id="notification-badge" style="display:none;">0</span>
+                        </button>
+                        <!-- Notification Dropdown -->
+                        <div class="notification-dropdown" id="notification-dropdown">
+                            <div class="notif-header">
+                                <span><i class="fa-solid fa-bell" style="margin-right:0.5rem;color:var(--primary);"></i>Notifications</span>
+                                <button class="notif-clear-btn" onclick="app.clearNotifications()">Clear all</button>
+                            </div>
+                            <div class="notif-list" id="notif-list">
+                                <!-- populated by app.updateBadge() -->
+                            </div>
+                            <div class="notif-footer">
+                                <button class="notif-view-all" id="notif-view-all-btn" onclick="app.expandNotifications()">
+                                    <i class="fa-solid fa-chevron-down" id="notif-expand-icon" style="margin-right:0.4rem;"></i>View All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
 

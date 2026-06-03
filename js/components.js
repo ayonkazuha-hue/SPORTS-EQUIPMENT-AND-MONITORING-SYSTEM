@@ -92,22 +92,6 @@ const Components = {
             <div class="animate-fade-in" style="animation-delay:0.08s; background:var(--bg-card); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:1.5rem 1.75rem; margin-bottom:2rem; box-shadow:var(--shadow-md);">
                 ${barRows}
             </div>
-
-            <!-- Alerts -->
-            <div class="section-header animate-fade-in" style="animation-delay: 0.1s">
-                <h3><i class="fa-solid fa-bell"></i> Alerts &amp; Notifications</h3>
-            </div>
-            <div class="alerts-list animate-fade-in" style="animation-delay: 0.1s">
-                ${metrics.alerts.length > 0 ? metrics.alerts.map(a => `
-                    <div class="alert-item ${a.type}">
-                        <span>${a.message}</span>
-                    </div>
-                `).join('') : `
-                    <div class="alert-item info">
-                        <span><i class="fa-solid fa-info-circle"></i> All equipment is well stocked and no returns are overdue.</span>
-                    </div>
-                `}
-            </div>
         `;
     },
 
@@ -227,8 +211,7 @@ const Components = {
                             <label>Condition Status</label>
                             <select id="eq-condition">
                                 <option value="Good" ${isEdit && eq.conditionStatus === 'Good' ? 'selected' : ''}>Good</option>
-                                <option value="Fair" ${isEdit && eq.conditionStatus === 'Fair' ? 'selected' : ''}>Fair</option>
-                                <option value="Needs Repair" ${isEdit && eq.conditionStatus === 'Needs Repair' ? 'selected' : ''}>Needs Repair</option>
+                                <option value="Damage" ${isEdit && eq.conditionStatus === 'Damage' ? 'selected' : ''}>Damage</option>
                             </select>
                         </div>
                     </div>
@@ -443,8 +426,7 @@ const Components = {
                         <label>Condition upon return *</label>
                         <select id="return-condition" required>
                             <option value="Good">Good</option>
-                            <option value="Fair">Fair</option>
-                            <option value="Needs Repair">Needs Repair</option>
+                            <option value="Damage">Damage</option>
                         </select>
                     </div>
                     <div class="form-group">
