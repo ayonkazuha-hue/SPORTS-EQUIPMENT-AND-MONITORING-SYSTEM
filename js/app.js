@@ -277,6 +277,15 @@ const app = {
         }
     },
 
+    deleteAllBorrowHistory() {
+        if (confirm('This will permanently delete ALL borrow history records. This cannot be undone. Continue?')) {
+            window.db.resetBorrowRecords();
+            this.showToast('All borrow history has been deleted.', 'success');
+            this.handleRoute();
+            this.updateBadge();
+        }
+    },
+
     // --- Borrow/Return Workflows --- //
     showBorrowModal(eqId) {
         const eq = window.db.getEquipmentById(eqId);
@@ -388,31 +397,55 @@ const app = {
 
     // --- Filtering --- //
     filterBorrowHistory() {
-        const filter = document.getElementById('history-filter').value;
+        const statusFilter = document.getElementById('history-filter')?.value || 'all';
+        const monthFilter  = document.getElementById('history-month')?.value  || 'all';
+        const yearFilter   = document.getElementById('history-year')?.value   || 'all';
+
         const allBorrows = window.db.getBorrowRecords();
         const now = new Date();
 
-        let filtered;
-        switch (filter) {
+        let filtered = allBorrows;
+
+        // Status filter
+        switch (statusFilter) {
             case 'active':
-                filtered = allBorrows.filter(b => !b.returnDate);
+                filtered = filtered.filter(b => !b.returnDate);
                 break;
             case 'returned':
-                filtered = allBorrows.filter(b => b.returnDate);
+                filtered = filtered.filter(b => b.returnDate);
                 break;
             case 'overdue':
-                filtered = allBorrows.filter(b => !b.returnDate && b.dueDate && new Date(b.dueDate) < now);
+                filtered = filtered.filter(b => !b.returnDate && b.dueDate && new Date(b.dueDate) < now);
                 break;
-            default:
-                filtered = allBorrows;
+        }
+
+        // Month filter (based on borrowDate)
+        if (monthFilter !== 'all') {
+            filtered = filtered.filter(b => {
+                if (!b.borrowDate) return false;
+                return new Date(b.borrowDate).getMonth() + 1 === parseInt(monthFilter);
+            });
+        }
+
+        // Year filter (based on borrowDate)
+        if (yearFilter !== 'all') {
+            filtered = filtered.filter(b => {
+                if (!b.borrowDate) return false;
+                return new Date(b.borrowDate).getFullYear() === parseInt(yearFilter);
+            });
         }
 
         const viewContainer = document.getElementById('app-view');
         viewContainer.innerHTML = Components.renderBorrowHistory(filtered);
-        // Restore filter value after re-render
+
+        // Restore all filter values after re-render
         setTimeout(() => {
-            const dropdown = document.getElementById('history-filter');
-            if (dropdown) dropdown.value = filter;
+            const s = document.getElementById('history-filter');
+            const m = document.getElementById('history-month');
+            const y = document.getElementById('history-year');
+            if (s) s.value = statusFilter;
+            if (m) m.value = monthFilter;
+            if (y) y.value = yearFilter;
         }, 10);
     },
 

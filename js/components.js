@@ -519,6 +519,9 @@ const Components = {
         return `
             <div class="section-header animate-fade-in">
                 <h2>Borrow History</h2>
+                <button class="btn btn-danger" onclick="app.deleteAllBorrowHistory()">
+                    <i class="fa-solid fa-trash-can"></i> Delete All History
+                </button>
             </div>
 
             <div class="dashboard-grid animate-fade-in" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 1.5rem;">
@@ -546,17 +549,40 @@ const Components = {
             </div>
 
             <div class="table-container animate-fade-in">
-                <div class="table-controls">
-                    <div style="display:flex; gap: 0.75rem; align-items: center;">
-                        <label>Filter:</label>
+                <div class="table-controls" style="flex-wrap: wrap; gap: 0.75rem;">
+                    <div style="display:flex; flex-wrap:wrap; gap: 0.75rem; align-items: center;">
+                        <label style="margin:0;">Status:</label>
                         <select id="history-filter" onchange="app.filterBorrowHistory()" style="width: auto; padding: 0.4rem; display: inline-block;">
                             <option value="all">All Records</option>
                             <option value="active">Active Only</option>
                             <option value="returned">Returned Only</option>
                             <option value="overdue">Overdue Only</option>
                         </select>
+
+                        <label style="margin:0;">Month:</label>
+                        <select id="history-month" onchange="app.filterBorrowHistory()" style="width: auto; padding: 0.4rem; display: inline-block;">
+                            <option value="all">All Months</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+
+                        <label style="margin:0;">Year:</label>
+                        <select id="history-year" onchange="app.filterBorrowHistory()" style="width: auto; padding: 0.4rem; display: inline-block;">
+                            <option value="all">All Years</option>
+                            ${[...new Set(sorted.map(b => b.borrowDate ? new Date(b.borrowDate).getFullYear() : null).filter(Boolean))].sort((a,b) => b - a).map(y => `<option value="${y}">${y}</option>`).join('')}
+                        </select>
                     </div>
-                    <div>Total Records: <strong>${sorted.length}</strong></div>
+                    <div>Total Records: <strong id="history-count">${sorted.length}</strong></div>
                 </div>
                 <div style="overflow-x: auto;">
                     <table id="history-table">
