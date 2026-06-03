@@ -259,33 +259,6 @@ const app = {
         }
     },
 
-    resetBorrowRecords() {
-        if (confirm('Reset all borrowed items and clear all borrow records? This will set borrowed quantities back to zero.')) {
-            window.db.resetBorrowRecords();
-            this.showToast('Borrow records reset successfully.', 'success');
-            this.handleRoute();
-            this.updateBadge();
-        }
-    },
-
-    resetAllEquipment() {
-        if (confirm('This will delete ALL equipment and ALL borrow records, giving you a clean slate. This cannot be undone. Continue?')) {
-            window.db.resetAllEquipment();
-            this.showToast('All equipment and borrow records have been cleared.', 'success');
-            this.handleRoute();
-            this.updateBadge();
-        }
-    },
-
-    deleteAllBorrowHistory() {
-        if (confirm('This will permanently delete ALL borrow history records. This cannot be undone. Continue?')) {
-            window.db.resetBorrowRecords();
-            this.showToast('All borrow history has been deleted.', 'success');
-            this.handleRoute();
-            this.updateBadge();
-        }
-    },
-
     // --- Borrow/Return Workflows --- //
     showBorrowModal(eqId) {
         const eq = window.db.getEquipmentById(eqId);

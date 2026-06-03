@@ -124,12 +124,6 @@ const Components = {
             <div class="section-header animate-fade-in">
                 <h2>Equipment Inventory</h2>
                 <div style="display: flex; gap: 0.75rem; align-items: center;">
-                    <button class="btn btn-secondary" onclick="app.resetBorrowRecords()">
-                        <i class="fa-solid fa-rotate-left"></i> Reset Borrows
-                    </button>
-                    <button class="btn btn-danger" onclick="app.resetAllEquipment()">
-                        <i class="fa-solid fa-trash-can"></i> Reset All Equipment
-                    </button>
                     <button class="btn btn-primary" onclick="app.showAddEquipmentModal()">
                         <i class="fa-solid fa-plus"></i> Add New
                     </button>
@@ -519,9 +513,6 @@ const Components = {
         return `
             <div class="section-header animate-fade-in">
                 <h2>Borrow History</h2>
-                <button class="btn btn-danger" onclick="app.deleteAllBorrowHistory()">
-                    <i class="fa-solid fa-trash-can"></i> Delete All History
-                </button>
             </div>
 
             <div class="dashboard-grid animate-fade-in" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 1.5rem;">
