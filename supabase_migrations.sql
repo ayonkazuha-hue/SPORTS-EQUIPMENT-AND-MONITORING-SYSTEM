@@ -45,8 +45,8 @@ CREATE TABLE users (
 -- 4. Borrow Records Table
 CREATE TABLE borrow_records (
     borrow_id TEXT PRIMARY KEY,
-    equipment_id TEXT NOT NULL REFERENCES equipment(equipment_id),
-    borrowed_by TEXT NOT NULL REFERENCES users(user_id),
+    equipment_id TEXT NOT NULL REFERENCES equipment(equipment_id) ON DELETE CASCADE,
+    borrowed_by TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     borrow_date TIMESTAMP DEFAULT NOW(),
     due_date DATE NOT NULL,
@@ -62,8 +62,8 @@ CREATE TABLE borrow_records (
 CREATE TABLE audit_log (
     log_id BIGSERIAL PRIMARY KEY,
     action_type VARCHAR(50) NOT NULL,
-    equipment_id TEXT REFERENCES equipment(equipment_id),
-    user_id TEXT REFERENCES users(user_id),
+    equipment_id TEXT REFERENCES equipment(equipment_id) ON DELETE SET NULL,
+    user_id TEXT REFERENCES users(user_id) ON DELETE SET NULL,
     old_value JSONB,
     new_value JSONB,
     description TEXT,

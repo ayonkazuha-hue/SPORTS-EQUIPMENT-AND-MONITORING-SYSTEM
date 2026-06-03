@@ -35,8 +35,8 @@ const app = {
             case '#equipment':
                 viewContainer.innerHTML = Components.renderEquipmentList(window.db.getEquipmentList());
                 break;
-            case '#reports':
-                viewContainer.innerHTML = Components.renderReports();
+            case '#history':
+                viewContainer.innerHTML = Components.renderBorrowHistory(window.db.getBorrowRecords());
                 break;
             default:
                 viewContainer.innerHTML = Components.renderDashboard(window.db.getDashboardMetrics());
@@ -175,7 +175,11 @@ const app = {
             equipmentId: document.getElementById('borrow-eq-id').value,
             quantity: parseInt(document.getElementById('borrow-qty').value),
             borrowedBy: document.getElementById('borrow-user').value,
-            dueDate: document.getElementById('borrow-due').value
+            idNo: document.getElementById('borrow-id-no').value,
+            contactNumber: document.getElementById('borrow-contact').value,
+            useFrom: document.getElementById('borrow-use-from').value,
+            dueDate: document.getElementById('borrow-due').value,
+            purpose: document.getElementById('borrow-purpose').value
         };
 
         window.db.borrowEquipment(data);
@@ -231,6 +235,35 @@ const app = {
         setTimeout(() => {
             const dropdown = document.getElementById('category-filter');
             if(dropdown) dropdown.value = cat;
+        }, 10);
+    },
+
+    filterBorrowHistory() {
+        const filter = document.getElementById('history-filter').value;
+        const allBorrows = window.db.getBorrowRecords();
+        const now = new Date();
+
+        let filtered;
+        switch (filter) {
+            case 'active':
+                filtered = allBorrows.filter(b => !b.returnDate);
+                break;
+            case 'returned':
+                filtered = allBorrows.filter(b => b.returnDate);
+                break;
+            case 'overdue':
+                filtered = allBorrows.filter(b => !b.returnDate && b.dueDate && new Date(b.dueDate) < now);
+                break;
+            default:
+                filtered = allBorrows;
+        }
+
+        const viewContainer = document.getElementById('app-view');
+        viewContainer.innerHTML = Components.renderBorrowHistory(filtered);
+        // Restore filter value after re-render
+        setTimeout(() => {
+            const dropdown = document.getElementById('history-filter');
+            if (dropdown) dropdown.value = filter;
         }, 10);
     },
 

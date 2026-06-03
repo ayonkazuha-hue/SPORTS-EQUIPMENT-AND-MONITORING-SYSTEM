@@ -102,8 +102,8 @@ CREATE TABLE IF NOT EXISTS borrow_records (
     is_overdue BOOLEAN DEFAULT FALSE,
     created_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_borrow_equipment FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id),
-    CONSTRAINT fk_borrow_user FOREIGN KEY (borrowed_by) REFERENCES users(user_id)
+    CONSTRAINT fk_borrow_equipment FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id) ON DELETE CASCADE,
+    CONSTRAINT fk_borrow_user FOREIGN KEY (borrowed_by) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_equipment ON borrow_records(equipment_id);
@@ -128,8 +128,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
     new_value JSONB,
     description TEXT,
     created_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_audit_equipment FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id),
-    CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(user_id)
+    CONSTRAINT fk_audit_equipment FOREIGN KEY (equipment_id) REFERENCES equipment(equipment_id) ON DELETE SET NULL,
+    CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_equipment ON audit_log(equipment_id);

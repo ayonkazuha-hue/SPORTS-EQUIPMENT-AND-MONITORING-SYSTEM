@@ -266,8 +266,11 @@ const Components = {
                         ${activeBorrows.map(b => `
                             <div class="alert-item info" style="justify-content: space-between;">
                                 <div>
-                                    <strong>${b.borrowedBy}</strong> borrowed ${b.quantity} unit(s)<br>
+                                    <strong>${b.borrowedBy}</strong>${b.idNo ? ` <span class="text-muted">(${b.idNo})</span>` : ''} borrowed ${b.quantity} unit(s)<br>
+                                    ${b.contactNumber ? `<small>Contact: ${b.contactNumber}</small><br>` : ''}
+                                    ${b.useFrom ? `<small>Use from: ${new Date(b.useFrom).toLocaleString()}</small><br>` : ''}
                                     <small>Due: ${new Date(b.dueDate).toLocaleDateString()}</small>
+                                    ${b.purpose ? `<br><small>Purpose: ${b.purpose}</small>` : ''}
                                 </div>
                                 <button class="btn btn-secondary btn-sm" onclick="app.showReturnModal('${b.borrowId}')">Process Return</button>
                             </div>
@@ -287,6 +290,11 @@ const Components = {
 
     // --- Borrow Form Modal --- //
     renderBorrowForm: (eq) => {
+        // Default date/time to now (local time) for "Date and Time of Use From"
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const defaultDateTime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
         return `
             <div class="modal-header">
                 <h3 class="modal-title">Borrow Equipment</h3>
@@ -299,22 +307,45 @@ const Components = {
                 </div>
                 <form id="borrow-form">
                     <input type="hidden" id="borrow-eq-id" value="${eq.equipmentId}">
+
                     <div class="form-row">
+                        <div class="form-group">
+                            <label>Borrowed By *</label>
+                            <input type="text" id="borrow-user" required placeholder="Full name">
+                        </div>
+                        <div class="form-group">
+                            <label>ID No. *</label>
+                            <input type="text" id="borrow-id-no" required placeholder="e.g. 2024-00123">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Contact Number *</label>
+                            <input type="tel" id="borrow-contact" required placeholder="e.g. 09171234567">
+                        </div>
                         <div class="form-group">
                             <label>Quantity to Borrow *</label>
                             <input type="number" id="borrow-qty" required min="1" max="${eq.quantityAvailable}" value="1">
                         </div>
-                        <div class="form-group">
-                            <label>Borrowed By *</label>
-                            <input type="text" id="borrow-user" required placeholder="User name">
-                        </div>
                     </div>
+
                     <div class="form-row">
+                        <div class="form-group">
+                            <label>Date &amp; Time of Use (From) *</label>
+                            <input type="datetime-local" id="borrow-use-from" required value="${defaultDateTime}">
+                        </div>
                         <div class="form-group">
                             <label>Expected Return Date *</label>
                             <input type="date" id="borrow-due" required>
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label>Purpose *</label>
+                        <textarea id="borrow-purpose" rows="3" required placeholder="State the purpose of borrowing this equipment..."></textarea>
+                    </div>
+
                 </form>
             </div>
             <div class="modal-footer">
@@ -334,7 +365,8 @@ const Components = {
             <div class="modal-body">
                 <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; border: 1px solid var(--border-color);">
                     <strong>${eq.equipmentName}</strong><br>
-                    Borrowed By: ${borrow.borrowedBy}<br>
+                    Borrowed By: ${borrow.borrowedBy}${borrow.idNo ? ` <span style="color:var(--text-muted)">(${borrow.idNo})</span>` : ''}<br>
+                    ${borrow.contactNumber ? `Contact: ${borrow.contactNumber}<br>` : ''}
                     Quantity to Return: <strong>${borrow.quantity}</strong>
                 </div>
                 <form id="return-form">
@@ -360,16 +392,136 @@ const Components = {
         `;
     },
 
-    // --- Reports View --- //
-    renderReports: () => {
+    // --- Borrow History View --- //
+    renderBorrowHistory: (borrows) => {
+        // Sort newest first
+        const sorted = [...borrows].sort((a, b) => new Date(b.borrowDate) - new Date(a.borrowDate));
+
+        const formatDT = (iso) => {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })
+                + ' ' + d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: true });
+        };
+
+        const formatDate = (str) => {
+            if (!str) return '—';
+            const d = new Date(str);
+            return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' });
+        };
+
+        const equipmentList = window.db.getEquipmentList();
+        const getEqName = (id) => {
+            const eq = equipmentList.find(e => e.equipmentId === id);
+            return eq ? eq.equipmentName : id;
+        };
+
+        let tableRows = '';
+        if (sorted.length === 0) {
+            tableRows = `<tr><td colspan="9" class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><br>No borrow records yet.</td></tr>`;
+        } else {
+            tableRows = sorted.map((b, i) => {
+                const isActive = !b.returnDate;
+                const isOverdue = isActive && b.dueDate && new Date(b.dueDate) < new Date();
+                const statusLabel = isActive
+                    ? (isOverdue ? '<span class="status-badge out-of-stock">⚠ Overdue</span>' : '<span class="status-badge low-stock">🟡 Active</span>')
+                    : '<span class="status-badge in-stock">✅ Returned</span>';
+
+                return `
+                    <tr>
+                        <td style="color: var(--text-muted); font-size: 0.8rem;">${i + 1}</td>
+                        <td>
+                            <strong>${b.borrowedBy || '—'}</strong><br>
+                            <small class="text-muted">${b.idNo || ''}</small>
+                        </td>
+                        <td><small>${b.contactNumber || '—'}</small></td>
+                        <td>
+                            <strong>${getEqName(b.equipmentId)}</strong><br>
+                            <small class="text-muted">${b.equipmentId}</small>
+                        </td>
+                        <td style="text-align: center;">${b.quantity}</td>
+                        <td><small>${formatDT(b.borrowDate)}</small></td>
+                        <td><small>${b.useFrom ? formatDT(b.useFrom) : '—'}</small></td>
+                        <td><small>${formatDate(b.dueDate)}</small><br>${b.returnDate ? `<small style="color:var(--success)">Returned: ${formatDT(b.returnDate)}</small>` : ''}</td>
+                        <td>${statusLabel}</td>
+                    </tr>
+                    ${b.purpose ? `
+                    <tr style="background: rgba(255,255,255,0.01);">
+                        <td></td>
+                        <td colspan="8" style="padding-top: 0; padding-bottom: 0.75rem;">
+                            <small style="color: var(--text-muted);"><i class="fa-solid fa-quote-left" style="font-size:0.65rem; margin-right:4px;"></i>${b.purpose}</small>
+                        </td>
+                    </tr>` : ''}
+                `;
+            }).join('');
+        }
+
+        const totalActive = sorted.filter(b => !b.returnDate).length;
+        const totalReturned = sorted.filter(b => b.returnDate).length;
+        const totalOverdue = sorted.filter(b => !b.returnDate && b.dueDate && new Date(b.dueDate) < new Date()).length;
+
         return `
             <div class="section-header animate-fade-in">
-                <h2>Reports & Analytics</h2>
+                <h2>Borrow History</h2>
             </div>
-            <div class="animate-fade-in" style="background: var(--bg-card); padding: 3rem; text-align: center; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
-                <i class="fa-solid fa-chart-line" style="font-size: 4rem; color: var(--primary); margin-bottom: 1rem;"></i>
-                <h3>Analytics Dashboard Coming Soon</h3>
-                <p class="text-muted">Export functionality and detailed utilization charts will be available here.</p>
+
+            <div class="dashboard-grid animate-fade-in" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 1.5rem;">
+                <div class="stat-card">
+                    <div class="stat-icon yellow"><i class="fa-solid fa-hand-holding"></i></div>
+                    <div class="stat-info">
+                        <h3>Currently Borrowed</h3>
+                        <p>${totalActive}</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green"><i class="fa-solid fa-rotate-left"></i></div>
+                    <div class="stat-info">
+                        <h3>Returned</h3>
+                        <p>${totalReturned}</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <div class="stat-info">
+                        <h3>Overdue</h3>
+                        <p>${totalOverdue}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container animate-fade-in">
+                <div class="table-controls">
+                    <div style="display:flex; gap: 0.75rem; align-items: center;">
+                        <label>Filter:</label>
+                        <select id="history-filter" onchange="app.filterBorrowHistory()" style="width: auto; padding: 0.4rem; display: inline-block;">
+                            <option value="all">All Records</option>
+                            <option value="active">Active Only</option>
+                            <option value="returned">Returned Only</option>
+                            <option value="overdue">Overdue Only</option>
+                        </select>
+                    </div>
+                    <div>Total Records: <strong>${sorted.length}</strong></div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="history-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Borrower</th>
+                                <th>Contact</th>
+                                <th>Equipment</th>
+                                <th>Qty</th>
+                                <th>Date Borrowed</th>
+                                <th>Use From</th>
+                                <th>Due / Returned</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         `;
     }
