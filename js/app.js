@@ -1,20 +1,17 @@
 /**
- * Application Controller
- * Handles routing, state, and UI interactions.
+ * Application Controller — async/await edition
+ * All db calls are now real API requests (no more localStorage).
  */
 
 const app = {
+
     init() {
         this.bindEvents();
-        this.handleRoute(); // initial load
-        this.updateBadge();
+        this.handleRoute();
     },
 
     bindEvents() {
-        // Handle hash changes for routing
         window.addEventListener('hashchange', () => this.handleRoute());
-
-        // Sidebar Navigation links
         document.querySelectorAll('.nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
@@ -23,23 +20,54 @@ const app = {
         });
     },
 
-    // --- Routing --- //
-    handleRoute() {
+    // ── Routing ──────────────────────────────────────────────────────────────
+    async handleRoute() {
         const hash = window.location.hash || '#dashboard';
         const viewContainer = document.getElementById('app-view');
 
-        switch (hash) {
-            case '#dashboard':
-                viewContainer.innerHTML = Components.renderDashboard(window.db.getDashboardMetrics());
-                break;
-            case '#equipment':
-                viewContainer.innerHTML = Components.renderEquipmentList(window.db.getEquipmentList());
-                break;
-            case '#history':
-                viewContainer.innerHTML = Components.renderBorrowHistory(window.db.getBorrowRecords());
-                break;
-            default:
-                viewContainer.innerHTML = Components.renderDashboard(window.db.getDashboardMetrics());
+        // Show loading skeleton while fetching
+        viewContainer.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;height:40vh;flex-direction:column;gap:1rem;color:var(--text-muted);">
+                <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem;color:var(--primary);"></i>
+                <span>Loading…</span>
+            </div>`;
+
+        try {
+            switch (hash) {
+                case '#dashboard': {
+                    const metrics = await window.db.getDashboardMetrics();
+                    viewContainer.innerHTML = Components.renderDashboard(metrics, metrics.equipmentList);
+                    await this.updateBadge(metrics);
+                    break;
+                }
+                case '#equipment': {
+                    const list = await window.db.getEquipmentList();
+                    viewContainer.innerHTML = Components.renderEquipmentList(list);
+                    await this.updateBadge();
+                    break;
+                }
+                case '#history': {
+                    const borrows = await window.db.getBorrowRecords();
+                    viewContainer.innerHTML = Components.renderBorrowHistory(borrows);
+                    await this.updateBadge();
+                    break;
+                }
+                default: {
+                    const metrics = await window.db.getDashboardMetrics();
+                    viewContainer.innerHTML = Components.renderDashboard(metrics, metrics.equipmentList);
+                    await this.updateBadge(metrics);
+                }
+            }
+        } catch (err) {
+            viewContainer.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;height:40vh;flex-direction:column;gap:1rem;color:var(--danger);">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem;"></i>
+                    <strong>Failed to load data</strong>
+                    <span style="font-size:0.85rem;color:var(--text-muted);">${err.message}</span>
+                    <button class="btn btn-primary" onclick="app.handleRoute()">
+                        <i class="fa-solid fa-rotate-right"></i> Retry
+                    </button>
+                </div>`;
         }
 
         // Update active nav link
@@ -48,96 +76,62 @@ const app = {
         if (activeLink) activeLink.classList.add('active');
     },
 
-    updateBadge() {
-        const metrics = window.db.getDashboardMetrics();
-        const badge = document.getElementById('notification-badge');
-        const btn   = document.getElementById('notification-btn');
+    // ── Notifications ─────────────────────────────────────────────────────────
+    async updateBadge(metrics) {
+        if (!metrics) {
+            try { metrics = await window.db.getDashboardMetrics(); } catch(e) { return; }
+        }
+        const badge     = document.getElementById('notification-badge');
+        const btn       = document.getElementById('notification-btn');
         const notifList = document.getElementById('notif-list');
+        const count     = metrics.alerts.length;
 
-        const count = metrics.alerts.length;
-
-        if (badge) {
-            badge.innerText = count;
-            badge.style.display = count > 0 ? 'flex' : 'none';
-        }
-
+        if (badge) { badge.innerText = count; badge.style.display = count > 0 ? 'flex' : 'none'; }
         if (btn) {
-            if (count > 0) {
-                // Remove and re-add class to re-trigger animation
-                btn.classList.remove('has-alerts');
-                void btn.offsetWidth; // reflow
-                btn.classList.add('has-alerts');
-            } else {
-                btn.classList.remove('has-alerts');
-            }
+            btn.classList.remove('has-alerts');
+            if (count > 0) { void btn.offsetWidth; btn.classList.add('has-alerts'); }
         }
-
         if (notifList) {
-            if (metrics.alerts.length === 0) {
-                notifList.innerHTML = `
-                    <div class="notif-empty">
-                        <i class="fa-solid fa-check-circle"></i>
-                        <span>All clear! No alerts right now.</span>
-                    </div>`;
-            } else {
-                notifList.innerHTML = metrics.alerts.map(a => {
+            notifList.innerHTML = count === 0
+                ? `<div class="notif-empty"><i class="fa-solid fa-check-circle"></i><span>All clear! No alerts right now.</span></div>`
+                : metrics.alerts.map(a => {
                     const iconMap = { danger: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-info-circle' };
-                    const icon = iconMap[a.type] || 'fa-bell';
-                    return `
-                        <div class="notif-item ${a.type}">
-                            <i class="fa-solid ${icon}"></i>
-                            <span>${a.message}</span>
-                        </div>`;
-                }).join('');
-            }
+                    return `<div class="notif-item ${a.type}"><i class="fa-solid ${iconMap[a.type]||'fa-bell'}"></i><span>${a.message}</span></div>`;
+                  }).join('');
         }
     },
 
     toggleNotifications(forceState) {
         const dropdown = document.getElementById('notification-dropdown');
         if (!dropdown) return;
-        const isOpen = dropdown.classList.contains('open');
-        const shouldOpen = forceState !== undefined ? forceState : !isOpen;
+        const shouldOpen = forceState !== undefined ? forceState : !dropdown.classList.contains('open');
         if (shouldOpen) {
             dropdown.classList.add('open');
-            // Close when clicking outside
             setTimeout(() => {
                 document.addEventListener('click', this._notifOutsideHandler = (e) => {
-                    if (!document.getElementById('notification-wrapper').contains(e.target)) {
+                    if (!document.getElementById('notification-wrapper').contains(e.target))
                         this.toggleNotifications(false);
-                    }
                 }, { once: true });
             }, 10);
         } else {
             dropdown.classList.remove('open');
-            // Reset expanded state on close
             const list = document.getElementById('notif-list');
             if (list) list.style.maxHeight = '';
-            const icon = document.getElementById('notif-expand-icon');
-            if (icon) { icon.classList.remove('fa-chevron-up'); icon.classList.add('fa-chevron-down'); }
             const btn = document.getElementById('notif-view-all-btn');
-            if (btn) btn.dataset.expanded = '';
-            if (this._notifOutsideHandler) {
-                document.removeEventListener('click', this._notifOutsideHandler);
-                this._notifOutsideHandler = null;
-            }
+            if (btn) { btn.dataset.expanded = ''; btn.innerHTML = '<i class="fa-solid fa-chevron-down" id="notif-expand-icon" style="margin-right:0.4rem;"></i>View All'; }
+            if (this._notifOutsideHandler) { document.removeEventListener('click', this._notifOutsideHandler); this._notifOutsideHandler = null; }
         }
     },
 
     expandNotifications() {
         const list = document.getElementById('notif-list');
-        const icon = document.getElementById('notif-expand-icon');
         const btn  = document.getElementById('notif-view-all-btn');
         if (!list) return;
-
-        const isExpanded = btn.dataset.expanded === 'true';
-        if (isExpanded) {
-            // Collapse back
+        if (btn.dataset.expanded === 'true') {
             list.style.maxHeight = '';
             btn.dataset.expanded = 'false';
             btn.innerHTML = '<i class="fa-solid fa-chevron-down" id="notif-expand-icon" style="margin-right:0.4rem;"></i>View All';
         } else {
-            // Expand to show all
             list.style.maxHeight = list.scrollHeight + 'px';
             btn.dataset.expanded = 'true';
             btn.innerHTML = '<i class="fa-solid fa-chevron-up" id="notif-expand-icon" style="margin-right:0.4rem;"></i>Show Less';
@@ -146,130 +140,104 @@ const app = {
 
     clearNotifications() {
         const notifList = document.getElementById('notif-list');
-        const badge = document.getElementById('notification-badge');
-        const btn   = document.getElementById('notification-btn');
-        const viewAllBtn = document.getElementById('notif-view-all-btn');
-
         if (notifList) {
             notifList.style.maxHeight = '';
-            notifList.innerHTML = `
-                <div class="notif-empty">
-                    <i class="fa-solid fa-check-circle"></i>
-                    <span>All clear! No alerts right now.</span>
-                </div>`;
+            notifList.innerHTML = `<div class="notif-empty"><i class="fa-solid fa-check-circle"></i><span>All clear! No alerts right now.</span></div>`;
         }
+        const badge = document.getElementById('notification-badge');
         if (badge) { badge.innerText = '0'; badge.style.display = 'none'; }
-        if (btn)   { btn.classList.remove('has-alerts'); }
-        if (viewAllBtn) {
-            viewAllBtn.dataset.expanded = '';
-            viewAllBtn.innerHTML = '<i class="fa-solid fa-chevron-down" id="notif-expand-icon" style="margin-right:0.4rem;"></i>View All';
-        }
+        const btn = document.getElementById('notification-btn');
+        if (btn) btn.classList.remove('has-alerts');
+        const viewAllBtn = document.getElementById('notif-view-all-btn');
+        if (viewAllBtn) { viewAllBtn.dataset.expanded = ''; viewAllBtn.innerHTML = '<i class="fa-solid fa-chevron-down" id="notif-expand-icon" style="margin-right:0.4rem;"></i>View All'; }
         this.toggleNotifications(false);
     },
 
-    // --- Modals Management --- //
+    // ── Modals ────────────────────────────────────────────────────────────────
     showModal(htmlContent) {
         const container = document.getElementById('modal-container');
-        container.innerHTML = `
-            <div class="modal-overlay">
-                <div class="modal animate-fade-in">
-                    ${htmlContent}
-                </div>
-            </div>
-        `;
-        
-        // Trigger animation
-        setTimeout(() => {
-            container.querySelector('.modal-overlay').classList.add('active');
-        }, 10);
+        container.innerHTML = `<div class="modal-overlay"><div class="modal animate-fade-in">${htmlContent}</div></div>`;
+        setTimeout(() => container.querySelector('.modal-overlay').classList.add('active'), 10);
     },
 
     closeModal() {
         const overlay = document.querySelector('.modal-overlay');
         if (overlay) {
             overlay.classList.remove('active');
-            setTimeout(() => {
-                document.getElementById('modal-container').innerHTML = '';
-            }, 300); // match CSS transition
+            setTimeout(() => { document.getElementById('modal-container').innerHTML = ''; }, 300);
         }
     },
 
-    // --- Equipment Workflows --- //
+    // ── Equipment ─────────────────────────────────────────────────────────────
     showAddEquipmentModal() {
         this.showModal(Components.renderEquipmentForm());
     },
 
-    showEditEquipment(id) {
-        const eq = window.db.getEquipmentById(id);
-        if (eq) this.showModal(Components.renderEquipmentForm(eq));
+    async showEditEquipment(id) {
+        try {
+            const eq = await window.db.getEquipmentById(id);
+            if (eq) this.showModal(Components.renderEquipmentForm(eq));
+        } catch (e) { this.showToast('Failed to load equipment.', 'error'); }
     },
 
-    showEquipmentDetails(id) {
-        const eq = window.db.getEquipmentById(id);
-        if (eq) this.showModal(Components.renderEquipmentDetails(eq));
+    async showEquipmentDetails(id) {
+        try {
+            const [eq, borrows] = await Promise.all([
+                window.db.getEquipmentById(id),
+                window.db.getBorrowRecords(),
+            ]);
+            if (eq) this.showModal(Components.renderEquipmentDetails(eq, borrows));
+        } catch (e) { this.showToast('Failed to load equipment details.', 'error'); }
     },
 
     calculateMockAvailability() {
-        const total = document.getElementById('eq-total').value;
-        const availableEl = document.getElementById('eq-available');
-        if (availableEl && total) {
-            availableEl.value = total; // Mock for new equipment
-        }
+        const total = document.getElementById('eq-total')?.value;
+        const el    = document.getElementById('eq-available');
+        if (el && total) el.value = total;
     },
 
-    saveEquipmentForm() {
+    async saveEquipmentForm() {
         const form = document.getElementById('equipment-form');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
+        if (!form.checkValidity()) { form.reportValidity(); return; }
 
-        const categoryEl = document.getElementById('eq-category');
-        const priceEl = document.getElementById('eq-price');
         const data = {
-            equipmentId: document.getElementById('eq-id').value,
-            equipmentName: document.getElementById('eq-name').value,
-            totalQuantity: parseInt(document.getElementById('eq-total').value),
+            equipmentId:    document.getElementById('eq-id').value,
+            equipmentName:  document.getElementById('eq-name').value,
+            totalQuantity:  parseInt(document.getElementById('eq-total').value),
             conditionStatus: document.getElementById('eq-condition').value,
-            notes: document.getElementById('eq-notes').value
+            notes:          document.getElementById('eq-notes').value,
         };
 
-        if (categoryEl) {
-            data.category = categoryEl.value;
-        }
-
-        if (priceEl) {
-            data.unitPrice = parseFloat(priceEl.value || 0);
-        }
-
-        window.db.saveEquipment(data);
-        this.closeModal();
-        this.showToast('Equipment saved successfully!', 'success');
-        this.handleRoute(); // Refresh view
-        this.updateBadge();
+        try {
+            await window.db.saveEquipment(data);
+            this.closeModal();
+            this.showToast('Equipment saved successfully!', 'success');
+            this.handleRoute();
+        } catch (e) { this.showToast(e.message || 'Failed to save equipment.', 'error'); }
     },
 
-    deleteEquipment(id) {
-        if(confirm("Are you sure you want to delete this equipment?")) {
-            window.db.deleteEquipment(id);
+    async deleteEquipment(id) {
+        if (!confirm('Are you sure you want to delete this equipment?')) return;
+        try {
+            await window.db.deleteEquipment(id);
             this.closeModal();
             this.showToast('Equipment deleted.', 'success');
             this.handleRoute();
-            this.updateBadge();
-        }
+        } catch (e) { this.showToast(e.message || 'Failed to delete equipment.', 'error'); }
     },
 
-    // --- Borrow/Return Workflows --- //
-    showBorrowModal(eqId) {
-        const eq = window.db.getEquipmentById(eqId);
-        if (eq) this.showModal(Components.renderBorrowForm(eq));
+    // ── Borrow / Return ───────────────────────────────────────────────────────
+    async showBorrowModal(eqId) {
+        try {
+            const eq = await window.db.getEquipmentById(eqId);
+            if (eq) this.showModal(Components.renderBorrowForm(eq));
+        } catch (e) { this.showToast('Failed to load equipment.', 'error'); }
     },
 
-    // Handles category radio change — toggle ID No. required + Others text field
     onBorrowCategoryChange(radio) {
-        const idNoInput = document.getElementById('borrow-id-no');
-        const idNoLabel = document.getElementById('borrow-idno-label');
-        const idNoHint  = document.getElementById('borrow-idno-hint');
+        const idNoInput  = document.getElementById('borrow-id-no');
+        const idNoLabel  = document.getElementById('borrow-idno-label');
+        const idNoHint   = document.getElementById('borrow-idno-hint');
         const otherInput = document.getElementById('borrow-category-other');
 
         if (radio.value === 'Student') {
@@ -277,7 +245,7 @@ const app = {
             idNoInput.placeholder = 'e.g. 2024-00123';
             idNoLabel.textContent = 'ID No. *';
             idNoHint.textContent = 'Required for Students';
-            idNoHint.style.color = 'var(--warning, #f59e0b)';
+            idNoHint.style.color = 'var(--warning)';
         } else {
             idNoInput.required = false;
             idNoInput.placeholder = 'Optional';
@@ -285,175 +253,114 @@ const app = {
             idNoHint.textContent = 'Optional for ' + radio.value;
             idNoHint.style.color = '';
         }
-
         if (radio.value === 'Others') {
-            otherInput.disabled = false;
-            otherInput.required = true;
-            otherInput.focus();
+            otherInput.disabled = false; otherInput.required = true; otherInput.focus();
         } else {
-            otherInput.disabled = true;
-            otherInput.required = false;
-            otherInput.value = '';
+            otherInput.disabled = true; otherInput.required = false; otherInput.value = '';
         }
     },
 
-    submitBorrow() {
+    async submitBorrow() {
         const form = document.getElementById('borrow-form');
-
-        // Check category selected
         const categoryRadio = document.querySelector('input[name="borrow-category"]:checked');
-        if (!categoryRadio) {
-            this.showToast('Please select a category (Faculty, Staff, Student, or Others).', 'error');
-            return;
-        }
+        if (!categoryRadio) { this.showToast('Please select a category.', 'error'); return; }
+        if (!form.checkValidity()) { form.reportValidity(); return; }
 
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
-
-        const category = categoryRadio.value;
-        const categoryOther = category === 'Others'
-            ? document.getElementById('borrow-category-other').value.trim()
-            : '';
+        const category      = categoryRadio.value;
+        const categoryOther = category === 'Others' ? document.getElementById('borrow-category-other').value.trim() : '';
 
         const data = {
-            equipmentId: document.getElementById('borrow-eq-id').value,
-            quantity: parseInt(document.getElementById('borrow-qty').value),
-            borrowedBy: document.getElementById('borrow-user').value,
+            equipmentId:   document.getElementById('borrow-eq-id').value,
+            quantity:      parseInt(document.getElementById('borrow-qty').value),
+            borrowedBy:    document.getElementById('borrow-user').value,
             category,
             categoryOther,
-            idNo: document.getElementById('borrow-id-no').value,
+            idNo:          document.getElementById('borrow-id-no').value,
             contactNumber: document.getElementById('borrow-contact').value,
-            useFrom: document.getElementById('borrow-use-from').value,
-            dueDate: document.getElementById('borrow-due').value,
-            issuedBy: document.getElementById('borrow-issued-by').value,
-            purpose: document.getElementById('borrow-purpose').value
+            useFrom:       document.getElementById('borrow-use-from').value,
+            dueDate:       document.getElementById('borrow-due').value,
+            issuedBy:      document.getElementById('borrow-issued-by').value,
+            purpose:       document.getElementById('borrow-purpose').value,
         };
 
-        window.db.borrowEquipment(data);
-        this.closeModal();
-        this.showToast('Equipment borrowed successfully.', 'success');
-        this.handleRoute();
-        this.updateBadge();
+        try {
+            await window.db.borrowEquipment(data);
+            this.closeModal();
+            this.showToast('Equipment borrowed successfully.', 'success');
+            this.handleRoute();
+        } catch (e) { this.showToast(e.message || 'Failed to borrow equipment.', 'error'); }
     },
 
-    showReturnModal(borrowId) {
-        const borrows = window.db.getBorrowRecords();
-        const borrow = borrows.find(b => b.borrowId === borrowId);
-        if (borrow) {
-            const eq = window.db.getEquipmentById(borrow.equipmentId);
-            this.showModal(Components.renderReturnForm(borrow, eq));
-        }
+    async showReturnModal(borrowId) {
+        try {
+            const borrows = await window.db.getBorrowRecords();
+            const borrow  = borrows.find(b => b.borrowId === borrowId);
+            if (borrow) {
+                const eq = await window.db.getEquipmentById(borrow.equipmentId);
+                this.showModal(Components.renderReturnForm(borrow, eq));
+            }
+        } catch (e) { this.showToast('Failed to load borrow record.', 'error'); }
     },
 
-    submitReturn() {
+    async submitReturn() {
         const form = document.getElementById('return-form');
-        if (!form.checkValidity()) {
-            form.reportValidity();
-            return;
-        }
+        if (!form.checkValidity()) { form.reportValidity(); return; }
 
         const borrowId = document.getElementById('return-borrow-id').value;
         const data = {
             condition: document.getElementById('return-condition').value,
-            notes: document.getElementById('return-notes').value
+            notes:     document.getElementById('return-notes').value,
         };
 
-        if (window.db.returnEquipment(borrowId, data)) {
+        try {
+            await window.db.returnEquipment(borrowId, data);
             this.closeModal();
             this.showToast('Equipment returned successfully.', 'success');
             this.handleRoute();
-            this.updateBadge();
-        }
+        } catch (e) { this.showToast(e.message || 'Failed to return equipment.', 'error'); }
     },
 
-    // --- Filtering --- //
-    filterBorrowHistory() {
+    // ── Filtering ─────────────────────────────────────────────────────────────
+    async filterBorrowHistory() {
         const statusFilter = document.getElementById('history-filter')?.value || 'all';
         const monthFilter  = document.getElementById('history-month')?.value  || 'all';
         const yearFilter   = document.getElementById('history-year')?.value   || 'all';
 
-        const allBorrows = window.db.getBorrowRecords();
-        const now = new Date();
+        try {
+            let filtered = await window.db.getBorrowRecords();
+            const now = new Date();
 
-        let filtered = allBorrows;
+            if (statusFilter === 'active')   filtered = filtered.filter(b => !b.returnDate);
+            if (statusFilter === 'returned')  filtered = filtered.filter(b =>  b.returnDate);
+            if (statusFilter === 'overdue')   filtered = filtered.filter(b => !b.returnDate && b.dueDate && new Date(b.dueDate) < now);
 
-        // Status filter
-        switch (statusFilter) {
-            case 'active':
-                filtered = filtered.filter(b => !b.returnDate);
-                break;
-            case 'returned':
-                filtered = filtered.filter(b => b.returnDate);
-                break;
-            case 'overdue':
-                filtered = filtered.filter(b => !b.returnDate && b.dueDate && new Date(b.dueDate) < now);
-                break;
-        }
+            if (monthFilter !== 'all') filtered = filtered.filter(b => b.borrowDate && new Date(b.borrowDate).getMonth() + 1 === parseInt(monthFilter));
+            if (yearFilter  !== 'all') filtered = filtered.filter(b => b.borrowDate && new Date(b.borrowDate).getFullYear() === parseInt(yearFilter));
 
-        // Month filter (based on borrowDate)
-        if (monthFilter !== 'all') {
-            filtered = filtered.filter(b => {
-                if (!b.borrowDate) return false;
-                return new Date(b.borrowDate).getMonth() + 1 === parseInt(monthFilter);
-            });
-        }
-
-        // Year filter (based on borrowDate)
-        if (yearFilter !== 'all') {
-            filtered = filtered.filter(b => {
-                if (!b.borrowDate) return false;
-                return new Date(b.borrowDate).getFullYear() === parseInt(yearFilter);
-            });
-        }
-
-        const viewContainer = document.getElementById('app-view');
-        viewContainer.innerHTML = Components.renderBorrowHistory(filtered);
-
-        // Restore all filter values after re-render
-        setTimeout(() => {
-            const s = document.getElementById('history-filter');
-            const m = document.getElementById('history-month');
-            const y = document.getElementById('history-year');
-            if (s) s.value = statusFilter;
-            if (m) m.value = monthFilter;
-            if (y) y.value = yearFilter;
-        }, 10);
+            document.getElementById('app-view').innerHTML = Components.renderBorrowHistory(filtered);
+            setTimeout(() => {
+                const s = document.getElementById('history-filter');
+                const m = document.getElementById('history-month');
+                const y = document.getElementById('history-year');
+                if (s) s.value = statusFilter;
+                if (m) m.value = monthFilter;
+                if (y) y.value = yearFilter;
+            }, 10);
+        } catch (e) { this.showToast('Filter failed: ' + e.message, 'error'); }
     },
 
-    // --- Toast Notifications --- //
+    // ── Toast ─────────────────────────────────────────────────────────────────
     showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        
-        let icon = 'fa-info-circle';
-        if (type === 'success') icon = 'fa-check-circle';
-        if (type === 'error') icon = 'fa-exclamation-circle';
-        if (type === 'warning') icon = 'fa-triangle-exclamation';
-
-        toast.innerHTML = `
-            <i class="fa-solid ${icon}"></i>
-            <span>${message}</span>
-        `;
-        
+        const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-triangle-exclamation', info: 'fa-info-circle' };
+        toast.innerHTML = `<i class="fa-solid ${icons[type]||icons.info}"></i><span>${message}</span>`;
         container.appendChild(toast);
-        
-        // Trigger animation
         setTimeout(() => toast.classList.add('show'), 10);
-
-        // Remove after 3 seconds
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
+        setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3500);
+    },
 };
 
-// Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    app.init();
-});
-
+document.addEventListener('DOMContentLoaded', () => app.init());
 window.app = app;
