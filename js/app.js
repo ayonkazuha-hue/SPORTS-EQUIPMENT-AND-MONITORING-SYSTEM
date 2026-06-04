@@ -168,6 +168,29 @@ const app = {
         }
     },
 
+    // ── Active Borrowers (Dashboard Borrowed card) ────────────────────────────
+    async showActiveBorrowers() {
+        try {
+            const metrics = await window.db.getDashboardMetrics();
+            this.showModal(Components.renderActiveBorrowersModal(metrics.activeBorrows, metrics.equipmentList));
+        } catch (e) { this.showToast('Failed to load borrowers.', 'error'); }
+    },
+
+    async showEquipmentDetailsFromBorrower(equipmentId) {
+        // Close the active borrowers modal, then open equipment details
+        this.closeModal();
+        // Small delay to let close animation finish before opening next modal
+        setTimeout(async () => {
+            try {
+                const [eq, borrows] = await Promise.all([
+                    window.db.getEquipmentById(equipmentId),
+                    window.db.getBorrowRecords(),
+                ]);
+                if (eq) this.showModal(Components.renderEquipmentDetails(eq, borrows));
+            } catch (e) { this.showToast('Failed to load equipment details.', 'error'); }
+        }, 320);
+    },
+
     // ── Equipment ─────────────────────────────────────────────────────────────
     showAddEquipmentModal() {
         this.showModal(Components.renderEquipmentForm());

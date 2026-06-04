@@ -54,9 +54,13 @@ const Components = {
                     <div class="stat-icon green"><i class="fa-solid fa-check-circle"></i></div>
                     <div class="stat-info"><h3>In Stock</h3><p>${metrics.inStockCount}</p></div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" onclick="app.showActiveBorrowers()" style="cursor:pointer;" title="Click to see all active borrowers">
                     <div class="stat-icon yellow"><i class="fa-solid fa-hand-holding"></i></div>
-                    <div class="stat-info"><h3>Borrowed</h3><p>${metrics.totalBorrowed}</p></div>
+                    <div class="stat-info">
+                        <h3>Borrowed</h3>
+                        <p>${metrics.totalBorrowed}</p>
+                        <small style="color:var(--text-muted);font-size:0.72rem;">Click to view borrowers</small>
+                    </div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
@@ -491,6 +495,102 @@ const Components = {
                 </div>
             </div>`;
     },
+    // ── Active Borrowers Modal ────────────────────────────────────────────────
+    renderActiveBorrowersModal(activeBorrows, equipmentList) {
+        const fmt = (iso) => {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'2-digit' })
+                 + ' ' + d.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit', hour12:true });
+        };
+
+        const getEq = (id) => equipmentList.find(e => e.equipmentId === id);
+
+        const now = new Date();
+
+        const rows = activeBorrows.length === 0
+            ? `<div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);">
+                   <i class="fa-solid fa-check-circle" style="font-size:2rem;color:var(--success);opacity:0.7;display:block;margin-bottom:0.75rem;"></i>
+                   No active borrows right now.
+               </div>`
+            : activeBorrows.map((b, i) => {
+                const eq       = getEq(b.equipmentId);
+                const eqName   = eq ? eq.equipmentName : (b.equipmentName || b.equipmentId);
+                const isOverdue = b.dueDate && new Date(b.dueDate) < now;
+                const catDisplay = b.category === 'Others' && b.categoryOther
+                    ? `Others (${b.categoryOther})` : (b.category || '');
+                const dueBadge = isOverdue
+                    ? `<span class="status-badge out-of-stock" style="font-size:0.7rem;">⚠ Overdue</span>`
+                    : `<span class="status-badge low-stock" style="font-size:0.7rem;">🟡 Active</span>`;
+
+                return `
+                <div class="borrower-row" onclick="app.showEquipmentDetailsFromBorrower('${b.equipmentId}')"
+                     style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.25rem;
+                            border-bottom:1px solid var(--border-color);cursor:pointer;transition:background 0.15s;gap:1rem;"
+                     onmouseover="this.style.background='rgba(59,130,246,0.06)'"
+                     onmouseout="this.style.background=''">
+                    <div style="display:flex;align-items:center;gap:0.9rem;min-width:0;">
+                        <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,0.12);
+                                    color:var(--primary);display:flex;align-items:center;justify-content:center;
+                                    font-weight:700;font-size:0.85rem;flex-shrink:0;">
+                            ${(b.borrowedBy || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div style="min-width:0;">
+                            <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                ${b.borrowedBy || '—'}
+                                ${b.idNo ? `<span style="color:var(--text-muted);font-weight:400;font-size:0.8rem;margin-left:0.35rem;">(${b.idNo})</span>` : ''}
+                            </div>
+                            <div style="font-size:0.78rem;color:var(--text-muted);">
+                                ${catDisplay ? `${catDisplay} &nbsp;·&nbsp; ` : ''}${b.contactNumber || ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:0.85rem;font-weight:600;color:var(--text-primary);">
+                            <i class="fa-solid fa-dumbbell" style="color:var(--primary);margin-right:4px;font-size:0.75rem;"></i>${eqName}
+                        </div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+                            Qty: <strong>${b.quantity}</strong>
+                            &nbsp;·&nbsp; Due: ${b.dueDate ? new Date(b.dueDate).toLocaleDateString('en-PH',{month:'short',day:'2-digit',year:'numeric'}) : '—'}
+                        </div>
+                        <div style="margin-top:4px;">${dueBadge}</div>
+                    </div>
+                    <div style="flex-shrink:0;color:var(--text-muted);font-size:0.8rem;">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                </div>`;
+            }).join('');
+
+        return `
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid fa-hand-holding" style="color:var(--warning);margin-right:0.5rem;"></i>
+                    Active Borrowers
+                    <span style="background:rgba(245,158,11,0.15);color:var(--warning);font-size:0.75rem;
+                                 padding:0.2rem 0.6rem;border-radius:99px;margin-left:0.5rem;font-weight:500;">
+                        ${activeBorrows.length}
+                    </span>
+                </h3>
+                <button class="close-btn" onclick="app.closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <div style="padding:0.75rem 1.25rem;background:rgba(245,158,11,0.06);border-bottom:1px solid var(--border-color);
+                            font-size:0.8rem;color:var(--text-muted);">
+                    <i class="fa-solid fa-circle-info" style="margin-right:0.35rem;color:var(--primary);"></i>
+                    Click any borrower to view their borrowed equipment details.
+                </div>
+                <div style="max-height:420px;overflow-y:auto;">
+                    ${rows}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="app.closeModal()">Close</button>
+                <a href="#history" onclick="app.closeModal()" class="btn btn-primary">
+                    <i class="fa-solid fa-clock-rotate-left"></i> View Full History
+                </a>
+            </div>`;
+    },
+
 };
 
 window.Components = Components;

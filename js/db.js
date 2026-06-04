@@ -284,7 +284,7 @@ class Database {
             }
         });
 
-        return { equipmentList, inStockCount, outOfStockCount, totalBorrowed, alerts };
+        return { equipmentList, borrowRecords, activeBorrows, inStockCount, outOfStockCount, totalBorrowed, alerts };
     }
 }
 
