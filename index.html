@@ -81,7 +81,9 @@
     <!-- Toast Notifications Container -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- Scripts -->
+    <!-- Supabase JS Client (CDN) — must be synchronous so window.supabase is ready for app scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <!-- App Scripts — at end of body, so DOM is already ready -->
     <script src="js/db.js"></script>
     <script src="js/components.js"></script>
     <script src="js/app.js"></script>
