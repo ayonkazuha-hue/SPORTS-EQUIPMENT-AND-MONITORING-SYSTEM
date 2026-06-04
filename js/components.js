@@ -50,9 +50,13 @@ const Components = {
             </div>
 
             <div class="dashboard-grid animate-fade-in" style="grid-template-columns:repeat(3,1fr);">
-                <div class="stat-card">
+                <div class="stat-card" onclick="app.showStockList('in-stock')" style="cursor:pointer;" title="Click to see in-stock equipment">
                     <div class="stat-icon green"><i class="fa-solid fa-check-circle"></i></div>
-                    <div class="stat-info"><h3>In Stock</h3><p>${metrics.inStockCount}</p></div>
+                    <div class="stat-info">
+                        <h3>In Stock</h3>
+                        <p>${metrics.inStockCount}</p>
+                        <small style="color:var(--text-muted);font-size:0.72rem;">Click to view list</small>
+                    </div>
                 </div>
                 <div class="stat-card" onclick="app.showActiveBorrowers()" style="cursor:pointer;" title="Click to see all active borrowers">
                     <div class="stat-icon yellow"><i class="fa-solid fa-hand-holding"></i></div>
@@ -62,9 +66,13 @@ const Components = {
                         <small style="color:var(--text-muted);font-size:0.72rem;">Click to view borrowers</small>
                     </div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" onclick="app.showStockList('out-of-stock')" style="cursor:pointer;" title="Click to see out-of-stock equipment">
                     <div class="stat-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                    <div class="stat-info"><h3>Out of Stock</h3><p>${metrics.outOfStockCount}</p></div>
+                    <div class="stat-info">
+                        <h3>Out of Stock</h3>
+                        <p>${metrics.outOfStockCount}</p>
+                        <small style="color:var(--text-muted);font-size:0.72rem;">Click to view list</small>
+                    </div>
                 </div>
             </div>
 
@@ -495,6 +503,95 @@ const Components = {
                 </div>
             </div>`;
     },
+    // ── Stock List Modal (In Stock / Out of Stock) ────────────────────────────
+    renderStockListModal(type, equipmentList) {
+        const isInStock   = type === 'in-stock';
+        const filtered    = isInStock
+            ? equipmentList.filter(e => e.quantityAvailable > 0)
+            : equipmentList.filter(e => e.quantityAvailable === 0);
+
+        const title  = isInStock ? 'In Stock Equipment'    : 'Out of Stock Equipment';
+        const icon   = isInStock ? 'fa-check-circle'       : 'fa-triangle-exclamation';
+        const color  = isInStock ? 'var(--success)'        : 'var(--danger)';
+        const bgClr  = isInStock ? 'rgba(16,185,129,0.1)'  : 'rgba(239,68,68,0.1)';
+        const badge  = isInStock ? 'in-stock'              : 'out-of-stock';
+
+        const rows = filtered.length === 0
+            ? `<div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);">
+                   <i class="fa-solid ${icon}" style="font-size:2rem;color:${color};opacity:0.6;display:block;margin-bottom:0.75rem;"></i>
+                   No equipment in this category.
+               </div>`
+            : filtered.map(eq => {
+                const pct = eq.totalQuantity > 0
+                    ? Math.round((eq.quantityAvailable / eq.totalQuantity) * 100) : 0;
+                const barColor = isInStock
+                    ? (pct < 20 ? 'var(--warning)' : 'var(--success)')
+                    : 'var(--danger)';
+
+                return `
+                <div onclick="app.showEquipmentDetailsFromBorrower('${eq.equipmentId}')"
+                     style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.25rem;
+                            border-bottom:1px solid var(--border-color);cursor:pointer;transition:background 0.15s;gap:1rem;"
+                     onmouseover="this.style.background='rgba(255,255,255,0.04)'"
+                     onmouseout="this.style.background=''">
+                    <div style="min-width:0;flex:1;">
+                        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+                            <strong style="font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${eq.equipmentName}</strong>
+                            <span class="status-badge ${badge}" style="font-size:0.68rem;flex-shrink:0;">${eq.stockStatusText}</span>
+                        </div>
+                        <small class="text-muted">${eq.equipmentId}</small>
+                        <!-- mini progress bar -->
+                        <div style="margin-top:0.4rem;height:5px;background:rgba(255,255,255,0.07);border-radius:99px;overflow:hidden;">
+                            <div style="height:100%;width:${pct}%;background:${barColor};border-radius:99px;transition:width 0.4s;"></div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:0.8rem;color:var(--text-muted);">
+                            Total: <strong style="color:var(--text-primary);">${eq.totalQuantity}</strong>
+                        </div>
+                        <div style="font-size:0.8rem;color:var(--text-muted);">
+                            Borrowed: <strong style="color:var(--warning);">${eq.quantityBorrowed}</strong>
+                        </div>
+                        <div style="font-size:0.8rem;">
+                            Available: <strong style="color:${color};">${eq.quantityAvailable}</strong>
+                        </div>
+                    </div>
+                    <div style="flex-shrink:0;color:var(--text-muted);font-size:0.8rem;">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </div>
+                </div>`;
+            }).join('');
+
+        return `
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fa-solid ${icon}" style="color:${color};margin-right:0.5rem;"></i>
+                    ${title}
+                    <span style="background:${bgClr};color:${color};font-size:0.75rem;
+                                 padding:0.2rem 0.6rem;border-radius:99px;margin-left:0.5rem;font-weight:500;">
+                        ${filtered.length}
+                    </span>
+                </h3>
+                <button class="close-btn" onclick="app.closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="padding:0;">
+                <div style="padding:0.75rem 1.25rem;background:${bgClr};border-bottom:1px solid var(--border-color);
+                            font-size:0.8rem;color:var(--text-muted);">
+                    <i class="fa-solid fa-circle-info" style="margin-right:0.35rem;color:var(--primary);"></i>
+                    Click any item to view its details and active borrows.
+                </div>
+                <div style="max-height:420px;overflow-y:auto;">
+                    ${rows}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="app.closeModal()">Close</button>
+                <a href="#equipment" onclick="app.closeModal()" class="btn btn-primary">
+                    <i class="fa-solid fa-boxes-stacked"></i> View Full Inventory
+                </a>
+            </div>`;
+    },
+
     // ── Active Borrowers Modal ────────────────────────────────────────────────
     renderActiveBorrowersModal(activeBorrows, equipmentList) {
         const fmt = (iso) => {

@@ -168,6 +168,14 @@ const app = {
         }
     },
 
+    // ── Stock List (Dashboard In Stock / Out of Stock cards) ──────────────────
+    async showStockList(type) {
+        try {
+            const metrics = await window.db.getDashboardMetrics();
+            this.showModal(Components.renderStockListModal(type, metrics.equipmentList));
+        } catch (e) { this.showToast('Failed to load equipment list.', 'error'); }
+    },
+
     // ── Active Borrowers (Dashboard Borrowed card) ────────────────────────────
     async showActiveBorrowers() {
         try {
